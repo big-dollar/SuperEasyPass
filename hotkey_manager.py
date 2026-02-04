@@ -1,4 +1,4 @@
-import keyboard
+
 import win32con
 import win32api
 import win32gui
@@ -14,19 +14,15 @@ CMPFUNC = ctypes.WINFUNCTYPE(ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.PO
 class HotkeyManager(QObject):
     show_menu_signal = pyqtSignal(QPoint)
     
+    
     def __init__(self, password_manager):
         super().__init__()
         self.password_manager = password_manager
         self.db = PasswordDatabase()
         self.menu = None
-        self.ctrl_pressed = False
         self.show_timer = QTimer(self)
         self.show_timer.setSingleShot(True)
         self.show_timer.timeout.connect(self.delayed_show_menu)
-        
-        # 改用键盘事件监听
-        keyboard.on_press_key('ctrl', self.on_ctrl_press)
-        keyboard.on_release_key('ctrl', self.on_ctrl_release)
         
         # 创建回调函数
         self._hook_proc = CMPFUNC(self._mouse_hook_proc)
@@ -46,14 +42,16 @@ class HotkeyManager(QObject):
     
     def _mouse_hook_proc(self, nCode, wParam, lParam):
         try:
-            if nCode >= 0 and self.ctrl_pressed:
+            if nCode >= 0:
                 if wParam == win32con.WM_RBUTTONDOWN:
-                    # 获取鼠标位置并显示菜单
-                    cursor_pos = win32gui.GetCursorPos()
-                    point = QPoint(cursor_pos[0], cursor_pos[1])
-                    self.show_menu_signal.emit(point)
-                    # 阻止事件传递
-                    return 1
+                    # 检查CTRL键状态 (最高位为1表示按下)
+                    if win32api.GetKeyState(win32con.VK_CONTROL) & 0x8000:
+                        # 获取鼠标位置并显示菜单
+                        cursor_pos = win32gui.GetCursorPos()
+                        point = QPoint(cursor_pos[0], cursor_pos[1])
+                        self.show_menu_signal.emit(point)
+                        # 阻止事件传递 (消费掉这个点击)
+                        return 1
         except:
             pass
         # 继续传递事件
@@ -61,13 +59,10 @@ class HotkeyManager(QObject):
     
     def __del__(self):
         if hasattr(self, 'hook') and self.hook:
-            ctypes.windll.user32.UnhookWindowsHookEx(self.hook)
-
-    def on_ctrl_press(self, e):
-        self.ctrl_pressed = True
-    
-    def on_ctrl_release(self, e):
-        self.ctrl_pressed = False
+            try:
+                ctypes.windll.user32.UnhookWindowsHookEx(self.hook)
+            except:
+                pass
     
     def on_right_click(self):
         if self.ctrl_pressed:

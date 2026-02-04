@@ -19,7 +19,8 @@ class PasswordMenu(QMenu):
     def init_menu(self):
         # 按分组整理密码
         password_groups = {}
-        for id, name, username, password, group_name in self.passwords:
+        # get_all_passwords returns (id, name, username, password, group_name, note)
+        for id, name, username, password, group_name, _ in self.passwords:
             if group_name not in password_groups:
                 password_groups[group_name] = []
             password_groups[group_name].append((id, name, username, password))
@@ -60,42 +61,42 @@ class PasswordMenu(QMenu):
         )
         
         # 设置样式表
+        # 设置样式表
         self.setStyleSheet("""
             QMenu {
                 background-color: #ffffff;
                 border: 1px solid #e1e4e8;
                 border-radius: 8px;
-                padding: 4px;
+                padding: 6px;
+                font-family: 'Segoe UI', sans-serif;
             }
             QMenu::item {
-                padding: 8px 24px;
-                border-radius: 4px;
-                margin: 2px 4px;
+                padding: 8px 32px 8px 12px;
+                border-radius: 6px;
+                margin: 2px 0px;
+                font-size: 13px;
+                color: #2c3e50;
             }
             QMenu::item:selected {
-                background-color: #e3f2fd;
-                color: #2196f3;
+                background-color: #f0f7ff;
+                color: #0366d6;
             }
             QMenu::separator {
                 height: 1px;
-                background-color: #e1e4e8;
-                margin: 4px 8px;
+                background-color: #eaecef;
+                margin: 6px 10px;
             }
-            /* 子菜单样式 */
+            /* 子菜单样式 - 嵌套时保持一致 */
             QMenu QMenu {
-                background-color: #ffffff;
-                border: 1px solid #e1e4e8;
-                border-radius: 8px;
+                border: 1px solid #d1d5da;
             }
-            /* 斑马纹效果 */
-            QMenu QMenu::item:!selected:nth-child(odd) {
-                background-color: #f8f9fa;
-            }
+            /* 斑马纹效果 - 移除以保持更现代洁净的外观 */
             /* 箭头样式 */
             QMenu::right-arrow {
+                image: none; /* 使用自定义字符或默认 */
                 width: 12px;
                 height: 12px;
-                margin-right: 4px;
+                padding-right: 4px;
             }
         """)
         
@@ -107,10 +108,11 @@ class PasswordMenu(QMenu):
         # 关闭菜单
         self.close()
         
-        # 等待一小段时间，让菜单完全关闭
-        time.sleep(0.1)
+        # 允许短暂的时间切换焦点，但尽量缩短
+        time.sleep(0.05) 
         
         # 模拟键盘输入：用户名 -> Tab -> 密码 -> Enter
+        # explicit interval=0 ensures fastest typing
         pyautogui.write(username)
         pyautogui.press('tab')
         pyautogui.write(password)
