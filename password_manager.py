@@ -1,11 +1,13 @@
 from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
                             QTableWidget, QTableWidgetItem, QPushButton, 
                             QLabel, QLineEdit, QHeaderView, QMessageBox,
-                            QComboBox, QDialog, QInputDialog, QListWidget, QTextEdit)
-from PyQt5.QtCore import Qt
+                            QComboBox, QDialog, QInputDialog, QListWidget, QTextEdit,
+                            QFileDialog, QMenu, QAction)
+from PyQt5.QtCore import Qt, QPoint
 from database import PasswordDatabase
 import random
 import string
+import json
 
 class AutoSaveTextEdit(QTextEdit):
     def __init__(self, save_callback):
@@ -237,8 +239,15 @@ class PasswordManagerWindow(QMainWindow):
         self.search_name_input.setPlaceholderText('🔍 搜索名称...')
         self.search_name_input.textChanged.connect(self.search_passwords)
         
+        # 更多选项按钮（导出/导入）
+        self.menu_btn = QPushButton("☰")
+        self.menu_btn.setFixedWidth(40)
+        self.menu_btn.setToolTip("更多选项 (导入/导出)")
+        self.menu_btn.clicked.connect(self.show_more_menu)
+        
         search_layout.addWidget(self.search_group_input)
         search_layout.addWidget(self.search_name_input)
+        search_layout.addWidget(self.menu_btn)
         
         left_layout.addLayout(search_layout)
         left_layout.addWidget(self.table)
@@ -316,6 +325,89 @@ class PasswordManagerWindow(QMainWindow):
     def load_data(self):
         self.load_groups()
         self.load_passwords()
+
+    def show_more_menu(self):
+        menu = QMenu(self)
+        
+        export_action = QAction("📤 导出数据 (JSON)", self)
+        export_action.triggered.connect(self.export_data)
+        menu.addAction(export_action)
+        
+        import_action = QAction("📥 导入数据 (JSON)", self)
+        import_action.triggered.connect(self.import_data)
+        menu.addAction(import_action)
+        
+        # 在按钮位置显示菜单
+        menu.exec_(self.menu_btn.mapToGlobal(QPoint(0, self.menu_btn.height())))
+
+    def export_data(self):
+        file_path, _ = QFileDialog.getSaveFileName(self, "导出密码数据", "", "JSON Files (*.json)")
+        if not file_path:
+            return
+            
+        try:
+            passwords = self.db.get_all_passwords()
+            export_list = []
+            for id, name, username, password, group_name, note in passwords:
+                export_list.append({
+                    "group": group_name,
+                    "name": name,
+                    "username": username,
+                    "password": password,
+                    "note": note
+                })
+            
+            with open(file_path, 'w', encoding='utf-8') as f:
+                json.dump(export_list, f, indent=4, ensure_ascii=False)
+                
+            QMessageBox.information(self, "导出成功", f"成功导出 {len(export_list)} 条记录！")
+        except Exception as e:
+            QMessageBox.critical(self, "导出失败", str(e))
+
+    def import_data(self):
+        file_path, _ = QFileDialog.getOpenFileName(self, "导入密码数据", "", "JSON Files (*.json)")
+        if not file_path:
+            return
+            
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            
+            if not isinstance(data, list):
+                raise ValueError("JSON格式错误：根元素必须是列表")
+            
+            added_count = 0
+            updated_count = 0
+            
+            for item in data:
+                # 简单验证必要字段
+                if not all(k in item for k in ("group", "name", "username", "password")):
+                    continue
+                
+                group = item.get("group", "未分组")
+                name = item.get("name")
+                username = item.get("username")
+                password = item.get("password")
+                note = item.get("note", "")
+                
+                # 确保分组存在
+                self.db.add_group(group)
+                
+                # 检查是否存在，存在则更新，不存在则添加
+                existing_id = self.db.get_password_id(group, name)
+                
+                if existing_id:
+                    self.db.update_password(existing_id, name, username, password, group, note)
+                    updated_count += 1
+                else:
+                    self.db.add_password(name, username, password, group, note)
+                    added_count += 1
+            
+            self.load_data()
+            QMessageBox.information(self, "导入成功", f"导入完成！\n新增: {added_count}\n更新: {updated_count}")
+            
+        except Exception as e:
+            QMessageBox.critical(self, "导入失败", f"错误详情: {str(e)}")
 
     def generate_random_password(self):
         """生成8位复杂密码（字母+数字+符号）"""

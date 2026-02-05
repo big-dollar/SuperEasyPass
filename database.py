@@ -152,3 +152,9 @@ class PasswordDatabase:
                 (name, group_name, exclude_id)
             )
         return cursor.fetchone()[0] > 0
+        
+    def get_password_id(self, group_name, name):
+        cursor = self.conn.cursor()
+        cursor.execute('SELECT id FROM passwords WHERE group_name = ? AND name = ?', (group_name, name))
+        result = cursor.fetchone()
+        return result[0] if result else None
