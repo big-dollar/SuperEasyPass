@@ -8,6 +8,9 @@ from database import PasswordDatabase
 import random
 import string
 import json
+import sys
+import os
+import winreg
 
 class AutoSaveTextEdit(QTextEdit):
     def __init__(self, save_callback):
@@ -337,8 +340,63 @@ class PasswordManagerWindow(QMainWindow):
         import_action.triggered.connect(self.import_data)
         menu.addAction(import_action)
         
+        menu.addSeparator()
+        
+        # 开机自启动选项
+        startup_action = QAction("🚀 开机自启动", self)
+        startup_action.setCheckable(True)
+        startup_action.setChecked(self.is_startup_enabled())
+        startup_action.triggered.connect(self.toggle_startup)
+        menu.addAction(startup_action)
+        
         # 在按钮位置显示菜单
         menu.exec_(self.menu_btn.mapToGlobal(QPoint(0, self.menu_btn.height())))
+    
+    def is_startup_enabled(self):
+        """检查是否已设置开机自启动"""
+        try:
+            key = winreg.OpenKey(
+                winreg.HKEY_CURRENT_USER,
+                r"Software\Microsoft\Windows\CurrentVersion\Run",
+                0, winreg.KEY_READ
+            )
+            winreg.QueryValueEx(key, "SuperEasyPass")
+            winreg.CloseKey(key)
+            return True
+        except FileNotFoundError:
+            return False
+        except Exception:
+            return False
+    
+    def toggle_startup(self):
+        """切换开机自启动状态"""
+        try:
+            key = winreg.OpenKey(
+                winreg.HKEY_CURRENT_USER,
+                r"Software\Microsoft\Windows\CurrentVersion\Run",
+                0, winreg.KEY_SET_VALUE
+            )
+            
+            if self.is_startup_enabled():
+                # 删除自启动
+                winreg.DeleteValue(key, "SuperEasyPass")
+                QMessageBox.information(self, "开机自启动", "已取消开机自启动")
+            else:
+                # 添加自启动
+                app_path = os.path.abspath(sys.argv[0])
+                # 如果是python脚本，需要用pythonw执行
+                if app_path.endswith('.py'):
+                    python_path = sys.executable.replace('python.exe', 'pythonw.exe')
+                    startup_cmd = f'"{python_path}" "{app_path}"'
+                else:
+                    startup_cmd = f'"{app_path}"'
+                    
+                winreg.SetValueEx(key, "SuperEasyPass", 0, winreg.REG_SZ, startup_cmd)
+                QMessageBox.information(self, "开机自启动", "已设置开机自启动")
+                
+            winreg.CloseKey(key)
+        except Exception as e:
+            QMessageBox.critical(self, "错误", f"设置失败: {str(e)}")
 
     def export_data(self):
         file_path, _ = QFileDialog.getSaveFileName(self, "导出密码数据", "", "JSON Files (*.json)")
