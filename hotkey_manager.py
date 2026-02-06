@@ -6,7 +6,7 @@ import ctypes
 from PyQt5.QtCore import QObject, QPoint, QTimer, pyqtSignal
 from menu import PasswordMenu
 from database import PasswordDatabase
-import mouse
+
 
 # 定义回调函数类型
 CMPFUNC = ctypes.WINFUNCTYPE(ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.POINTER(ctypes.c_void_p))

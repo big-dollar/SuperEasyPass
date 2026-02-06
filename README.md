@@ -71,8 +71,9 @@
 
 ### 安装依赖
 ```bash
-pip install PyQt5 pywin32 pyautogui keyboard
+pip install -r requirements.txt
 ```
+*(包含：PyQt5, pywin32, pyautogui)*
 
 ### 运行
 ```bash
