@@ -92,6 +92,7 @@ class PasswordManagerWindow(QMainWindow):
         super().__init__()
         self.db = PasswordDatabase()
         self.current_viewing_id = None
+        self.current_password = None  # 保存当前查看的真实密码
         self.init_ui()
         self.init_tray_icon()  # 初始化系统托盘
         self.load_data()
@@ -211,6 +212,7 @@ class PasswordManagerWindow(QMainWindow):
         self.detail_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.detail_table.setEditTriggers(QTableWidget.NoEditTriggers)
         self.detail_table.setFixedHeight(140) # 稍微增加高度适应大字体
+        self.detail_table.cellClicked.connect(self.copy_password_to_clipboard)  # 添加点击事件
         
         # 增加行高
         self.detail_table.verticalHeader().setDefaultSectionSize(50)
@@ -538,11 +540,36 @@ class PasswordManagerWindow(QMainWindow):
             self.current_viewing_id = password_id # 记录当前查看的ID
             password_data = self.db.get_password_by_id(password_id)
             if password_data:
+                # 保存真实密码和用户名以便复制
+                self.current_username = password_data[2]
+                self.current_password = password_data[3]
                 # 只设置一列的值
                 self.detail_table.setItem(0, 0, QTableWidgetItem(password_data[2]))
                 self.detail_table.setItem(1, 0, QTableWidgetItem('*' * len(password_data[3])))
                 # 加载备注
                 self.note_edit.setPlainText(password_data[5])
+    
+    def copy_password_to_clipboard(self, row, column):
+        """点击用户名或密码字段时复制到剪贴板"""
+        clipboard = QApplication.clipboard()
+        
+        if row == 0 and hasattr(self, 'current_username'):  # 第0行是用户名
+            clipboard.setText(self.current_username)
+            self.tray_icon.showMessage(
+                "复制成功",
+                "用户名已复制到剪贴板！",
+                QSystemTrayIcon.Information,
+                1500
+            )
+        elif row == 1 and self.current_password:  # 第1行是密码行
+            clipboard.setText(self.current_password)
+            # 使用托盘气泡提示，不打断用户操作
+            self.tray_icon.showMessage(
+                "复制成功",
+                "密码已复制到剪贴板！",
+                QSystemTrayIcon.Information,
+                1500
+            )
     
     def save_current_note(self):
         if self.current_viewing_id:
