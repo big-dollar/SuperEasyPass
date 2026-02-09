@@ -2,8 +2,9 @@ from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                             QTableWidget, QTableWidgetItem, QPushButton, 
                             QLabel, QLineEdit, QHeaderView, QMessageBox,
                             QComboBox, QDialog, QInputDialog, QListWidget, QTextEdit,
-                            QFileDialog, QMenu, QAction)
+                            QFileDialog, QMenu, QAction, QSystemTrayIcon, QApplication)
 from PyQt5.QtCore import Qt, QPoint
+from PyQt5.QtGui import QIcon
 from database import PasswordDatabase
 import random
 import string
@@ -92,6 +93,7 @@ class PasswordManagerWindow(QMainWindow):
         self.db = PasswordDatabase()
         self.current_viewing_id = None
         self.init_ui()
+        self.init_tray_icon()  # 初始化系统托盘
         self.load_data()
         
     def init_ui(self):
@@ -615,3 +617,70 @@ class PasswordManagerWindow(QMainWindow):
             self.detail_table.clearContents()
             self.note_edit.clear()
             self.current_viewing_id = None
+    
+    def init_tray_icon(self):
+        """初始化系统托盘图标"""
+        # 创建托盘图标
+        self.tray_icon = QSystemTrayIcon(self)
+        
+        # 设置图标
+        icon_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "RuxiPass.ico")
+        if os.path.exists(icon_path):
+            self.tray_icon.setIcon(QIcon(icon_path))
+        else:
+            # 如果图标文件不存在，使用默认图标
+            self.tray_icon.setIcon(self.style().standardIcon(self.style().SP_ComputerIcon))
+        
+        # 设置提示文本
+        self.tray_icon.setToolTip("超容易密码管理器 (SuperEasyPass)")
+        
+        # 创建托盘菜单
+        tray_menu = QMenu()
+        
+        show_action = QAction("显示主窗口", self)
+        show_action.triggered.connect(self.show_window)
+        tray_menu.addAction(show_action)
+        
+        tray_menu.addSeparator()
+        
+        quit_action = QAction("退出程序", self)
+        quit_action.triggered.connect(self.quit_application)
+        tray_menu.addAction(quit_action)
+        
+        self.tray_icon.setContextMenu(tray_menu)
+        
+        # 双击托盘图标显示窗口
+        self.tray_icon.activated.connect(self.tray_icon_activated)
+        
+        # 显示托盘图标
+        self.tray_icon.show()
+    
+    def tray_icon_activated(self, reason):
+        """托盘图标被激活时的处理"""
+        if reason == QSystemTrayIcon.DoubleClick:
+            self.show_window()
+    
+    def show_window(self):
+        """显示主窗口"""
+        self.show()
+        self.activateWindow()  # 激活窗口，使其获得焦点
+        self.raise_()  # 将窗口提到最前面
+    
+    def closeEvent(self, event):
+        """重写关闭事件，最小化到托盘而不是退出"""
+        event.ignore()  # 忽略关闭事件
+        self.hide()  # 隐藏窗口
+        # 首次最小化到托盘时显示提示
+        if not hasattr(self, '_tray_tip_shown'):
+            self.tray_icon.showMessage(
+                "超容易密码管理器",
+                "程序已最小化到系统托盘，双击托盘图标可重新打开",
+                QSystemTrayIcon.Information,
+                2000
+            )
+            self._tray_tip_shown = True
+    
+    def quit_application(self):
+        """真正退出应用程序"""
+        self.tray_icon.hide()  # 隐藏托盘图标
+        QApplication.instance().quit()  # 退出应用
