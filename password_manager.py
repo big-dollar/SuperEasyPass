@@ -2,9 +2,10 @@ from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                             QTableWidget, QTableWidgetItem, QPushButton, 
                             QLabel, QLineEdit, QHeaderView, QMessageBox,
                             QComboBox, QDialog, QInputDialog, QListWidget, QTextEdit,
-                            QFileDialog, QMenu, QAction, QSystemTrayIcon, QApplication)
-from PyQt5.QtCore import Qt, QPoint
-from PyQt5.QtGui import QIcon
+                            QFileDialog, QMenu, QAction, QSystemTrayIcon, QApplication,
+                            QWhatsThis, QToolTip)
+from PyQt5.QtCore import Qt, QPoint, QUrl, QEvent, QTimer
+from PyQt5.QtGui import QIcon, QDesktopServices, QCursor
 from database import PasswordDatabase
 import random
 import string
@@ -28,6 +29,8 @@ class GroupManageDialog(QDialog):
         self.db = db
         self.setWindowTitle("分组管理")
         self.setFixedSize(300, 400)
+        # 移除标题栏的帮助按钮（问号）
+        self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
         self.init_ui()
         
     def init_ui(self):
@@ -187,6 +190,15 @@ class PasswordManagerWindow(QMainWindow):
                 font-size: 12px;
                 padding: 5px;
             }
+            /* 气泡提示样式优化 */
+            QToolTip {
+                background-color: #24292e;
+                color: #ffffff;
+                border: 1px solid #e1e4e8;
+                border-radius: 6px;
+                padding: 8px;
+                font-size: 14px;
+            }
         """)
         
         central_widget = QWidget()
@@ -235,6 +247,15 @@ class PasswordManagerWindow(QMainWindow):
         self.table.cellClicked.connect(self.show_password_details)
         self.table.cellDoubleClicked.connect(self.edit_password)  # 添加双击事件
         
+        # 实现悬停1秒显示气泡功能
+        self.table.setMouseTracking(True)
+        self.table.entered.connect(self.handle_table_hover)
+        self.table.viewport().installEventFilter(self)
+        
+        self.tooltip_timer = QTimer()
+        self.tooltip_timer.setSingleShot(True)
+        self.tooltip_timer.timeout.connect(self.show_edit_tip)
+        
         # 搜索区域
         search_layout = QHBoxLayout()
         
@@ -246,6 +267,26 @@ class PasswordManagerWindow(QMainWindow):
         self.search_name_input.setPlaceholderText('🔍 搜索名称...')
         self.search_name_input.textChanged.connect(self.search_passwords)
         
+        # 新增帮助按钮（问号）
+        self.help_btn = QPushButton("?")
+        self.help_btn.setFixedWidth(40)
+        self.help_btn.setToolTip("查看帮助 / 源码 (GitHub)")
+        self.help_btn.setStyleSheet("""
+            QPushButton { 
+                background-color: #f6f8fa; 
+                color: #586069; 
+                border: 1px solid #e1e4e8; 
+                font-weight: bold;
+                font-size: 18px;
+            }
+            QPushButton:hover { 
+                background-color: #0366d6; 
+                color: white; 
+                border: 1px solid #0366d6;
+            }
+        """)
+        self.help_btn.clicked.connect(lambda: QDesktopServices.openUrl(QUrl("https://github.com/big-dollar/SuperEasyPass")))
+
         # 更多选项按钮（导出/导入）
         self.menu_btn = QPushButton("☰")
         self.menu_btn.setFixedWidth(40)
@@ -254,6 +295,7 @@ class PasswordManagerWindow(QMainWindow):
         
         search_layout.addWidget(self.search_group_input)
         search_layout.addWidget(self.search_name_input)
+        search_layout.addWidget(self.help_btn)
         search_layout.addWidget(self.menu_btn)
         
         left_layout.addLayout(search_layout)
@@ -711,3 +753,20 @@ class PasswordManagerWindow(QMainWindow):
         """真正退出应用程序"""
         self.tray_icon.hide()  # 隐藏托盘图标
         QApplication.instance().quit()  # 退出应用
+
+    def handle_table_hover(self, index):
+        """当鼠标进入表格单元格时，启动1秒计时器"""
+        self.tooltip_timer.stop()
+        if index.isValid():
+            self.tooltip_timer.start(1000) # 1000ms = 1s
+
+    def show_edit_tip(self):
+        """显示气泡提示"""
+        QToolTip.showText(QCursor.pos(), "💡 双击可编辑/更新此记录", self.table)
+
+    def eventFilter(self, source, event):
+        """事件过滤器：处理鼠标离开表格时隐藏气泡"""
+        if source == self.table.viewport() and event.type() == QEvent.Leave:
+            self.tooltip_timer.stop()
+            QToolTip.hideText()
+        return super().eventFilter(source, event)
