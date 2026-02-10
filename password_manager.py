@@ -687,18 +687,33 @@ class PasswordManagerWindow(QMainWindow):
             self.note_edit.clear()
             self.current_viewing_id = None
     
+    def resource_path(self, relative_path):
+        """ Get absolute path to resource, works for dev and for PyInstaller """
+        try:
+            # PyInstaller creates a temp folder and stores path in _MEIPASS
+            base_path = sys._MEIPASS
+        except Exception:
+            base_path = os.path.abspath(".")
+        return os.path.join(base_path, relative_path)
+
     def init_tray_icon(self):
         """初始化系统托盘图标"""
         # 创建托盘图标
         self.tray_icon = QSystemTrayIcon(self)
         
         # 设置图标
-        icon_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "RuxiPass.ico")
+        # 使用新的 resource_path 方法获取图标路径
+        icon_path = self.resource_path("RuxiPass.ico")
         if os.path.exists(icon_path):
             self.tray_icon.setIcon(QIcon(icon_path))
         else:
-            # 如果图标文件不存在，使用默认图标
-            self.tray_icon.setIcon(self.style().standardIcon(self.style().SP_ComputerIcon))
+            # 如果图标文件不存在，尝试尝试原始路径（开发环境备用）
+            dev_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "RuxiPass.ico")
+            if os.path.exists(dev_path):
+                self.tray_icon.setIcon(QIcon(dev_path))
+            else:
+                # 使用默认图标
+                self.tray_icon.setIcon(self.style().standardIcon(self.style().SP_ComputerIcon))
         
         # 设置提示文本
         self.tray_icon.setToolTip("超容易密码管理器 (SuperEasyPass)")

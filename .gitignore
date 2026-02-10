@@ -1,0 +1,23 @@
+# Python compiled files
+__pycache__/
+*.pyc
+
+# Build artifacts (PyInstaller)
+build/
+dist/
+# Optional: Ignore spec files if you want to regenerate them every time, 
+# but usually they are kept. Un-comment the next line to ignore them.
+# *.spec
+
+# Database (CRITICAL: Do not commit actual passwords)
+passwords.db
+
+# User Data / Exports
+export.json
+
+# Agent directory
+.agent/
+
+# IDE / Editor
+.vscode/
+.idea/
