@@ -14,6 +14,163 @@ import sys
 import os
 import winreg
 
+
+class DatabaseSetupDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("数据库设置")
+        self.setFixedSize(450, 250)
+        self.db_path = None
+        self.startup_password = None
+        self.init_ui()
+
+    def init_ui(self):
+        layout = QVBoxLayout(self)
+        
+        # 提示信息
+        layout.addWidget(QLabel("找不到数据库文件，请选择操作："))
+        
+        # 操作选择
+        self.radio_layout = QHBoxLayout()
+        # Create a container widget for radios to manage exclusion
+        radio_group = QWidget()
+        radio_group_layout = QHBoxLayout(radio_group)
+        self.create_radio = QPushButton("创建新数据库")
+        self.create_radio.setCheckable(True)
+        self.create_radio.setChecked(True)
+        self.create_radio.clicked.connect(lambda: self.toggle_mode(True))
+        
+        self.open_radio = QPushButton("打开现有数据库") 
+        self.open_radio.setCheckable(True)
+        self.open_radio.clicked.connect(lambda: self.toggle_mode(False))
+        
+        # Make them act like radio buttons visually
+        self.update_radio_styles()
+        
+        self.radio_layout.addWidget(self.create_radio)
+        self.radio_layout.addWidget(self.open_radio)
+        layout.addLayout(self.radio_layout)
+        
+        # 路径选择
+        path_layout = QHBoxLayout()
+        self.path_edit = QLineEdit()
+        self.path_edit.setReadOnly(True)
+        self.browse_btn = QPushButton("浏览...")
+        self.browse_btn.clicked.connect(self.browse_path)
+        path_layout.addWidget(self.path_edit)
+        path_layout.addWidget(self.browse_btn)
+        layout.addLayout(path_layout)
+        
+        # 启动密码设置 (仅新建模式显示, 或者总是显示作为更新?)
+        # 需求: "首次启动在以上的窗口增加用户的启动密码... 如果留空则无密码"
+        # 解释: 这里我们允许用户设置启动密码。
+        self.pwd_label = QLabel("设置启动密码 (留空则无密码):")
+        self.pwd_edit = QLineEdit()
+        self.pwd_edit.setPlaceholderText("在此输入启动密码(明文显示)")
+        layout.addWidget(self.pwd_label)
+        layout.addWidget(self.pwd_edit)
+        
+        # 确认按钮
+        btn_layout = QHBoxLayout()
+        ok_btn = QPushButton("确定")
+        ok_btn.clicked.connect(self.accept)
+        cancel_btn = QPushButton("退出")
+        cancel_btn.clicked.connect(self.reject)
+        
+        # 样式
+        ok_btn.setStyleSheet("background-color: #2ea44f; color: white;")
+        cancel_btn.setStyleSheet("background-color: #d73a49; color: white;")
+        
+        btn_layout.addStretch()
+        btn_layout.addWidget(ok_btn)
+        btn_layout.addWidget(cancel_btn)
+        layout.addLayout(btn_layout)
+        
+        self.is_create_mode = True
+
+    def update_radio_styles(self):
+        active = "background-color: #0366d6; color: white;"
+        inactive = "background-color: #f6f8fa; color: black;"
+        self.create_radio.setStyleSheet(active if self.create_radio.isChecked() else inactive)
+        self.open_radio.setStyleSheet(active if self.open_radio.isChecked() else inactive)
+
+    def toggle_mode(self, is_create):
+        self.is_create_mode = is_create
+        self.create_radio.setChecked(is_create)
+        self.open_radio.setChecked(not is_create)
+        self.update_radio_styles()
+        
+        if is_create:
+            self.create_radio.setText("✓ 创建新数据库")
+            self.open_radio.setText("打开现有数据库")
+            self.pwd_label.setText("设置启动密码 (留空则无密码):")
+            self.pwd_edit.setEnabled(True)
+        else:
+            self.create_radio.setText("创建新数据库")
+            self.open_radio.setText("✓ 打开现有数据库")
+            self.pwd_label.setText("启动密码 (如果现有库有密码，此处不用填):")
+            self.pwd_edit.setEnabled(False) # 打开现有库时不在此处修改密码? 或者允许修改?
+            # 简化逻辑：打开库时，我们只链接路径。如果用户想改密码，应该在软件内改(虽然暂无功能)。
+            # 但也许用户忘记密码想重置？不行，这是"找回"功能。
+            # 暂且禁用，避免混淆。
+            self.pwd_edit.clear()
+
+    def browse_path(self):
+        if self.is_create_mode:
+            path, _ = QFileDialog.getSaveFileName(self, "创建数据库", "", "SQLite Database (*.db)")
+        else:
+            path, _ = QFileDialog.getOpenFileName(self, "打开数据库", "", "SQLite Database (*.db)")
+            
+        if path:
+            self.path_edit.setText(path)
+
+    def accept(self):
+        path = self.path_edit.text()
+        if not path:
+            QMessageBox.warning(self, "提示", "请选择数据库路径")
+            return
+            
+        self.db_path = path
+        # 仅在创建模式下读取密码输入，或者虽然是Open模式但如果以后支持重置也可以
+        if self.is_create_mode:
+            self.startup_password = self.pwd_edit.text()
+        else:
+            self.startup_password = None # Open模式保持原样
+            
+        super().accept()
+
+class StartupLoginDialog(QDialog):
+    def __init__(self, saved_password, parent=None):
+        super().__init__(parent)
+        self.saved_password = saved_password
+        self.setWindowTitle("安全验证")
+        self.setFixedSize(300, 150)
+        # 去掉问号
+        self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
+        self.init_ui()
+        
+    def init_ui(self):
+        layout = QVBoxLayout(self)
+        layout.addWidget(QLabel("请输入启动密码:"))
+        
+        self.pwd_edit = QLineEdit()
+        self.pwd_edit.setEchoMode(QLineEdit.Password)
+        self.pwd_edit.returnPressed.connect(self.check_password)
+        layout.addWidget(self.pwd_edit)
+        
+        btn = QPushButton("登录")
+        btn.clicked.connect(self.check_password)
+        btn.setStyleSheet("background-color: #2ea44f; color: white; padding: 8px;")
+        layout.addWidget(btn)
+        
+    def check_password(self):
+        if self.pwd_edit.text() == self.saved_password:
+            self.accept()
+        else:
+            QMessageBox.warning(self, "错误", "密码错误！")
+            self.pwd_edit.clear()
+            self.pwd_edit.setFocus()
+
 class AutoSaveTextEdit(QTextEdit):
     def __init__(self, save_callback):
         super().__init__()
@@ -22,6 +179,7 @@ class AutoSaveTextEdit(QTextEdit):
     def focusOutEvent(self, event):
         self.save_callback()
         super().focusOutEvent(event)
+
 
 class GroupManageDialog(QDialog):
     def __init__(self, db, parent=None):
@@ -91,9 +249,12 @@ class GroupManageDialog(QDialog):
             QMessageBox.warning(self, "无法删除", msg)
 
 class PasswordManagerWindow(QMainWindow):
-    def __init__(self):
+    def __init__(self, db_path):
         super().__init__()
-        self.db = PasswordDatabase()
+        if not db_path:
+            raise ValueError("Database path must be provided")
+            
+        self.db = PasswordDatabase(db_path)
         self.current_viewing_id = None
         self.current_password = None  # 保存当前查看的真实密码
         self.init_ui()
@@ -101,7 +262,7 @@ class PasswordManagerWindow(QMainWindow):
         self.load_data()
         
     def init_ui(self):
-        self.setWindowTitle('超容易密码管理器 (SuperEasyPass) - V1.0')
+        self.setWindowTitle('超容易密码管理器 (SuperEasyPass) - V1.1')
         self.setGeometry(300, 300, 800, 500)
         
         # 设置应用样式表

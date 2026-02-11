@@ -2,7 +2,7 @@
 
 > **可能是 Windows 上最顺滑、最“无脑”好用的 Python 本地密码管理工具。拒绝繁琐，一键自动填充！**
 
-![Version](https://img.shields.io/badge/version-V1.0-blue.svg) ![Python](https://img.shields.io/badge/Python-3.8+-yellow.svg) ![Platform](https://img.shields.io/badge/Platform-Windows-00a2ed.svg) ![License](https://img.shields.io/badge/license-MIT-green.svg)
+![Version](https://img.shields.io/badge/version-V1.1-blue.svg) ![Python](https://img.shields.io/badge/Python-3.8+-yellow.svg) ![Platform](https://img.shields.io/badge/Platform-Windows-00a2ed.svg) ![License](https://img.shields.io/badge/license-MIT-green.svg)
 
 ---
 
@@ -44,6 +44,17 @@
 ### 🚀 开机自启动
 支持在菜单中一键开启**开机自启动**功能。无需手动开启，电脑启动后 SuperEasyPass 就在后台静默运行，随时准备为你填充密码。
 
+### 🛡️ 启动安全锁 (New in V1.1)
+还在担心电脑被借用时密码库被偷看？**V1.1 版本新增启动密码功能！**
+首次运行时即可设置专属**启动口令**。之后每次打开软件，必须即使输入正确口令才能解锁。即便别人拿到你的电脑，只要不知道这个口令，你的密码宝库依然固若金汤（密码以明文存储，专为防君子不防小人设计，主打只有你知道）。
+
+### 💾 数据库随心放 (New in V1.1)
+你的数据你做主！不再受限于软件目录。
+**V1.1 版本支持自定义数据库位置**。你可以把 `passwords.db` 放在D盘、E盘，甚至是**U盘**或**移动硬盘**里！
+软件启动找不到数据库？没关系，它会智能弹出向导，让你选择是"创建新库"还是"打开现有库"。
+*   **便携党福音**：把数据库放在U盘，走到哪插到哪，数据跟着走。
+*   **整理控最爱**：数据库文件想放哪就放哪，配置文件自动记录路径，再也不怕文件乱跑。
+
 ### 🔄 批量导入导出
 支持将所有数据**导出为 JSON 格式**，方便备份或批量编辑。修改后再**一键导入**，系统会自动识别并更新现有记录，数据迁移从未如此简单。
 
@@ -53,8 +64,7 @@
 
 我们正在努力让 SuperEasyPass 变得更安全、更智能：
 
-1.  🔐 **数据库加密 (AES-256)**: 让你的数据库文件固若金汤，即使文件被盗也无法破解。
-2.  🛡️ **启动访问锁**: 首次打开软件需输入主密码解锁，防止他人窥探。
+2.  🛡️ **更强的加密**: 虽然现有版本已有启动锁，未来将支持数据库级 AES-256 加密。
 3.  ⌨️ **一键隐私锁定**: 增加快捷键锁定界面，离开工位时秒级保护隐私。
 4.  💾 **自动定时备份**: 后台默默守护你的数据，防止误删或文件损坏。
 5.  ⚠️ **密码泄露检测**: 定期比对已知泄露数据库，第一时间预警风险账号。

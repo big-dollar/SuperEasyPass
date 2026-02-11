@@ -2,7 +2,7 @@ import sqlite3
 import os
 
 class PasswordDatabase:
-    def __init__(self, db_file='passwords.db'):
+    def __init__(self, db_file):
         self.db_file = db_file
         self.conn = sqlite3.connect(self.db_file)
         self.create_table()
@@ -43,6 +43,14 @@ class PasswordDatabase:
         for grp in existing_groups:
             if grp:
                 cursor.execute("INSERT OR IGNORE INTO groups (name) VALUES (?)", (grp,))
+        
+        # 创建配置表
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS app_config (
+            key TEXT PRIMARY KEY,
+            value TEXT
+        )
+        ''')
         
         self.conn.commit()
     
@@ -156,5 +164,21 @@ class PasswordDatabase:
     def get_password_id(self, group_name, name):
         cursor = self.conn.cursor()
         cursor.execute('SELECT id FROM passwords WHERE group_name = ? AND name = ?', (group_name, name))
+        result = cursor.fetchone()
+        return result[0] if result else None
+        
+    def set_startup_password(self, password):
+        """设置启动密码（明文存储）"""
+        cursor = self.conn.cursor()
+        if password:
+            cursor.execute('INSERT OR REPLACE INTO app_config (key, value) VALUES (?, ?)', ('startup_password', password))
+        else:
+            cursor.execute('DELETE FROM app_config WHERE key = ?', ('startup_password',))
+        self.conn.commit()
+        
+    def get_startup_password(self):
+        """获取启动密码"""
+        cursor = self.conn.cursor()
+        cursor.execute('SELECT value FROM app_config WHERE key = ?', ('startup_password',))
         result = cursor.fetchone()
         return result[0] if result else None

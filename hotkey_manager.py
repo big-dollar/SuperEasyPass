@@ -18,7 +18,7 @@ class HotkeyManager(QObject):
     def __init__(self, password_manager):
         super().__init__()
         self.password_manager = password_manager
-        self.db = PasswordDatabase()
+        self.db = password_manager.db
         self.menu = None
         self.show_timer = QTimer(self)
         self.show_timer.setSingleShot(True)
