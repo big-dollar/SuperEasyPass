@@ -849,13 +849,22 @@ class PasswordManagerWindow(QMainWindow):
             self.current_viewing_id = None
     
     def resource_path(self, relative_path):
-        """ Get absolute path to resource, works for dev and for PyInstaller """
-        try:
-            # PyInstaller creates a temp folder and stores path in _MEIPASS
+        """ 获取资源绝对路径，兼容开发环境、PyInstaller 和 Nuitka """
+        if hasattr(sys, '_MEIPASS'):
+            # PyInstaller 临时目录
             base_path = sys._MEIPASS
-        except Exception:
-            base_path = os.path.abspath(".")
-        return os.path.join(base_path, relative_path)
+        else:
+            # 开发环境或 Nuitka
+            # 使用 sys.argv[0] 获取可执行文件所在目录
+            base_path = os.path.dirname(os.path.abspath(sys.argv[0]))
+        
+        path = os.path.join(base_path, relative_path)
+        
+        # 如果路径不存在，回退到当前工作目录（开发环境常见）
+        if not os.path.exists(path):
+            path = os.path.join(os.path.abspath("."), relative_path)
+            
+        return path
 
     def init_tray_icon(self):
         """初始化系统托盘图标"""
